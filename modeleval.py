@@ -13,12 +13,14 @@ print(f"Using device: {device}")
 
 # 预处理（确保和训练时一致）
 test_transform = transforms.Compose([
+    transforms.Resize(32),
+    transforms.ToTensor(),
     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 ])
 
 # 加载训练好的 ResNet 模型
-model = ResNet18()
-model.fc = nn.Linear(512, 10)
+model = ResNetTiny()
+model.fc = nn.Linear(256, 10)
 model.load_state_dict(torch.load("./resnet_cifar10.pth"))  # **先加载权重**
 model = model.to(device)
 model.eval()  # **确保关闭 Dropout**
@@ -50,5 +52,5 @@ with torch.no_grad():
 
 # 生成 CSV 提交文件
 submission = pd.DataFrame({"ID": test_ids, "Labels": predictions})
-submission.to_csv("submission5.csv", index=False)
-print("Test predictions saved to submission5.csv")
+submission.to_csv("submission7.csv", index=False)
+print("Test predictions saved to submission7.csv")
