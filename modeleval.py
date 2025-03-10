@@ -5,7 +5,7 @@ import pandas as pd
 from torch.utils.data import DataLoader
 import torch.nn as nn
 from torchvision.transforms import transforms
-from Resnet import *
+from ResNetTiny import *
 
 # 设备选择
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -15,11 +15,11 @@ print(f"Using device: {device}")
 test_transform = transforms.Compose([
     transforms.Resize(32),
     transforms.ToTensor(),
-    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616))
 ])
 
 # 加载训练好的 ResNet 模型
-model = ResNetTiny()
+model = ResNetTiny1()
 model.fc = nn.Linear(256, 10)
 model.load_state_dict(torch.load("./resnet_cifar10.pth"))  # **先加载权重**
 model = model.to(device)
@@ -52,5 +52,5 @@ with torch.no_grad():
 
 # 生成 CSV 提交文件
 submission = pd.DataFrame({"ID": test_ids, "Labels": predictions})
-submission.to_csv("submission7.csv", index=False)
-print("Test predictions saved to submission7.csv")
+submission.to_csv("submission8.csv", index=False)
+print("Test predictions saved to submission8.csv")

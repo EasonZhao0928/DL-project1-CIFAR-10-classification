@@ -1,10 +1,44 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchsummary import summary
+
+
+class SEBlock(nn.Module):
+    def __init__(self, in_channels, reduction=16):
+        super(SEBlock, self).__init__()
+        self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc1 = nn.Linear(in_channels, in_channels // reduction)
+        self.fc2 = nn.Linear(in_channels // reduction, in_channels)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        out = self.global_avg_pool(x).view(b, c)
+        out = self.fc1(out)
+        out = F.relu(out)
+        out = self.fc2(out)
+        out = self.sigmoid(out).view(b, c, 1, 1)
+        return x * out
+
+class SEBasicBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1):
+        super(SEBasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.se = SEBlock(out_channels)  # 加入 SE 机制
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = F.relu(out)
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.se(out)  # 经过 SE 模块
+        return F.relu(out + x)
 
 
 class BasicBlock(nn.Module):
@@ -31,13 +65,13 @@ class BasicBlock(nn.Module):
         return F.relu(out)
 
 
-class ResNet(nn.Module):
+class ResNetTiny(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10):
-        super(ResNet, self).__init__()
-        self.in_planes = 32  # 初始通道数
+        super(ResNetTiny, self).__init__()
+        self.in_planes = 48  # 初始通道数
 
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(32)
+        self.conv1 = nn.Conv2d(3, 48, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(48)
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
@@ -67,9 +101,14 @@ class ResNet(nn.Module):
         return out
 
 
-def ResNetTiny():
+def ResNetTiny1():
     # 修改网络结构来减少参数量，减少深度和每层的卷积通道
-    return ResNet(BasicBlock, [1, 1, 2, 2])  # 减少层数，增加性能表现
+    return ResNetTiny(SEBasicBlock, [1, 1, 2, 2])  # 减少层数，增加性能表现
+"""
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = ResNetTiny1().to(device)
+
+summary(model, (3, 32, 32))  # 假设输入为 3x32x32 图像
 
 
 def count_params(model):
@@ -88,3 +127,4 @@ def test():
 
 if __name__ == "__main__":
     test()
+"""
