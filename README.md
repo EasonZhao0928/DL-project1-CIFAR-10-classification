@@ -3,3 +3,7 @@ Deep Learning Project 1
 
 Team moximoxi
 
+Team members:
+
+Yucheng Zhao, Zhiding Zhou, Airu Liu
+
