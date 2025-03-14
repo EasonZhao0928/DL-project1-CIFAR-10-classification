@@ -3,14 +3,18 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision.transforms import AutoAugmentPolicy
+import torch.multiprocessing
 
-from ResNetTiny import *
+
+#from ResNetTiny import *
 from SEPro import *
 import os
 
 from model import seresnet18
+from model.SEChange import ResNetTiny4
 
 #del model  # 删除模型对象
 #torch.cuda.empty_cache()  # 释放 GPU 占用
@@ -18,6 +22,8 @@ from model import seresnet18
 # 选择设备
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
+
+torch.multiprocessing.set_start_method('spawn', force=True)  # 解决 Windows 多进程问题
 
 # 数据增强
 train_transform = transforms.Compose([
@@ -36,6 +42,24 @@ val_transform = transforms.Compose([
     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616))
 ])
 
+"""
+train_transform = transforms.Compose([
+    transforms.Resize(40),
+    transforms.RandomRotation(10),
+    transforms.ColorJitter(brightness = 0.1,contrast = 0.1,saturation = 0.1),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomAdjustSharpness(sharpness_factor = 2,p = 0.2),
+    transforms.RandomCrop(32, padding=4),
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616)),
+    transforms.RandomErasing(p=0.2,scale=(0.02, 0.1),value=1.0, inplace=False)
+])
+
+val_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2471, 0.2435, 0.2616))
+])
+"""
 # 数据集路径
 DATA_DIR = "data/cifar-10"
 
@@ -44,13 +68,13 @@ train_dataset = datasets.CIFAR10(root=DATA_DIR, train=True, download=True, trans
 val_dataset = datasets.CIFAR10(root=DATA_DIR, train=False, download=True, transform=val_transform)
 
 # DataLoader
-train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True, num_workers=0)
-val_loader = DataLoader(val_dataset, batch_size=100, shuffle=False, num_workers=0)
+train_loader = DataLoader(train_dataset, batch_size=256, shuffle=True, num_workers=0, pin_memory=True)
+val_loader = DataLoader(val_dataset, batch_size=100, shuffle=False, num_workers=0, pin_memory=True)
 
 print(f"训练集大小: {len(train_dataset)}, 验证集大小: {len(val_dataset)}")
 
 # 定义模型
-model = ResNetTiny2()
+model = ResNetTiny4()
 #model.fc = nn.Linear(512, 10)  # 修改最后一层
 print(model)
 model = model.to(device)
@@ -61,11 +85,11 @@ print(f"Model Parameters: {total_params:,}")
 # 损失函数 & 优化器
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.1, momentum=0.9, weight_decay=5e-4)
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=200)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=600)
 
 
 # 训练函数
-def train_model(model, train_loader, val_loader, epochs=200):
+def train_model(model, train_loader, val_loader, epochs=600):
     best_acc = 0.0  # 记录最佳验证准确率
     best_model_path = "best_resnet_cifar10.pth"
 
@@ -116,7 +140,7 @@ def train_model(model, train_loader, val_loader, epochs=200):
 
 # 训练模型
 if __name__ == '__main__':
-    train_model(model, train_loader, val_loader, epochs=200)
+    train_model(model, train_loader, val_loader, epochs=600)
 
 # 保存最终模型
 torch.save(model.state_dict(), "final_resnet_cifar10.pth")

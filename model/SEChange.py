@@ -6,10 +6,11 @@ from torchsummary import summary
 class SEBlock(nn.Module):
     def __init__(self, in_channels, reduction=16):
         super(SEBlock, self).__init__()
+        reduced_channels = max(16, in_channels // reduction)
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc1 = nn.Linear(in_channels, in_channels // reduction, bias=False)
+        self.fc1 = nn.Linear(in_channels, reduced_channels, bias=False)
         self.relu = nn.ReLU(inplace=True)
-        self.fc2 = nn.Linear(in_channels // reduction, in_channels, bias=False)
+        self.fc2 = nn.Linear(reduced_channels, in_channels, bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -22,7 +23,7 @@ class SEBlock(nn.Module):
         return x * out
 
 class SEBottleneckBlock(nn.Module):
-    expansion = 2
+    expansion = 1
 
     def __init__(self, in_channels, out_channels, stride=1, reduction=16):
         super(SEBottleneckBlock, self).__init__()
@@ -69,10 +70,10 @@ class SEBottleneckBlock(nn.Module):
 class ResNetTiny3(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10):
         super(ResNetTiny3, self).__init__()
-        self.in_planes = 48
+        self.in_planes = 64
 
-        self.conv1 = nn.Conv2d(3, 48, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(48)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
 
         self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
@@ -102,7 +103,7 @@ class ResNetTiny3(nn.Module):
         return out
 
 def ResNetTiny4():
-    return ResNetTiny3(SEBottleneckBlock, [2, 3, 2, 2])
+    return ResNetTiny3(SEBottleneckBlock, [2, 2, 4, 2])
 
 # 创建模型
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
